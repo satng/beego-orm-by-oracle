@@ -4,7 +4,10 @@
 本项目是在beego orm上修改，保持beego orm相同的接口，只针对orcale，定制修改。
 
 
+项目前期Demo,略有不完善和没有完成的部份接口。
+
 orcale驱动
 github.com/mattn/go-oci8
+<br/>
 beego
 beego.me
