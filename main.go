@@ -12,9 +12,9 @@ import (
 )
 
 type Order struct {
-	Id   int    `orm:"column(ID)"`
-	Name string `orm:"column(Name)"`
-	Number string
+	Id     int    `orm:"column(ID)"`
+	Name   string `orm:"column(Name)"`
+	Number string `orm:"column(Number)"`
 }
 
 func (u *Order) TableName() string {
@@ -44,13 +44,57 @@ func (u *User) TableName() string {
 }
 
 func init() {
-	orm.RegisterDriver("oci8", orm.DROracle)
-	orm.RegisterDataBase("default", "oci8", "LIULIANG/123456@127.0.0.1:1521/ORCL?loc=America%2FLos_Angeles", 50, 100)
+
+	orm.RegisterDB("default", "LIULIANG/123456@127.0.0.1:1521/ORCL?loc=America%2FLos_Angeles", 50, 100)
 	orm.RegisterModel(new(User), new(Order), new(Post))
 	orm.Debug = true
 
 }
 
+func ReadOrCreate(o orm.Ormer) {
+	user := Order{Id: 10216, Name: "AAAAAbbb"}
+	o.ReadOrCreate(&user, "id")
+}
+
+func ExecSQL(o orm.Ormer) {
+	{
+		//ids := []int{1, 2, 3}
+		r := (o).Raw(`SELECT "name" FROM "USER" WHERE "id" = 1`)
+		var user User
+		err := r.QueryRow(&user)
+		if err == nil {
+
+			fmt.Println("mysql row affected nums: ", user)
+		} else {
+			fmt.Printf(" %v", err)
+		}
+	}
+	{
+		res, err := o.Raw(`update  "ORDER" set "Name"='bbbbbbbbbbbAAAAAAA' WHERE ID=100`).Exec()
+		if err == nil {
+			num, _ := res.RowsAffected()
+			fmt.Println("mysql row affected nums: ", num)
+		}
+	}
+
+	{
+
+		r := o.Raw("UPDATE 'USER' SET name = :0 WHERE name = :1")
+		p, err := r.Prepare()
+		res, err := p.Exec("testing", "slene")
+		if err == nil {
+			num, _ := res.RowsAffected()
+			fmt.Println("mysql row affected nums: ", num)
+		}
+		res, err = p.Exec("testing", "astaxie")
+		if err == nil {
+			num, _ := res.RowsAffected()
+			fmt.Println("mysql row affected nums: ", num)
+		}
+		p.Close() // 别忘记关闭 statement
+
+	}
+}
 func main() {
 
 	o := orm.NewOrm()
@@ -58,21 +102,28 @@ func main() {
 	o.Using("default") // 默认使用 default，你可以指定为其他数据库
 
 	/*
-	res, err := o.Raw(`MERGE INTO "USER" T1
-							  USING (SELECT :id AS "id",:name AS "name" FROM dual) T2
-							  ON ( T1."id"=T2."id")
-							  WHEN MATCHED THEN
-							  UPDATE SET T1."name" = T2."name"
-							  WHEN NOT MATCHED THEN
-    						  INSERT ("id","name") VALUES (T2."id",T2."name")`, 1000, "aaaaaa").Exec()
-	if err == nil {
-		num, _ := res.RowsAffected()
-		fmt.Println("mysql row affected nums: ", num)
-	}
+			res, err := o.Raw(`MERGE INTO "USER" T1
+									  USING (SELECT :id AS "id",:name AS "name" FROM dual) T2
+									  ON ( T1."id"=T2."id")
+									  WHEN MATCHED THEN
+									  UPDATE SET T1."name" = T2."name"
+									  WHEN NOT MATCHED THEN
+		    						  INSERT ("id","name") VALUES (T2."id",T2."name")`, 1000, "aaaaaa").Exec()
+			if err == nil {
+				num, _ := res.RowsAffected()
+				fmt.Println("mysql row affected nums: ", num)
+			}
+	*/
+	//o.Begin()
+	//ReadOrCreate(o)
+	//o.Rollback()
+
+	ExecSQL(o)
+
 	if 1 == 1 {
-		return;
+		return
 	}
-*/
+
 	if 1 == 1 {
 
 		user := Order{Id: 1026, Name: "AAAAAbbb"}
@@ -83,8 +134,7 @@ func main() {
 		fmt.Println(val, ind, typ)
 		fmt.Println(ind.Type().Name(), ind.Type().PkgPath())
 		o.Test(&user)
-		num, err := o.InsertOrUpdate(&user)
-		fmt.Printf("Affected Num: %v, %v", num, err)
+
 		//fmt.Printf(*(*string)(unsafe.Pointer(uintptr(num))))
 		//num, err := o.QueryTable("Post").Filter("title", "313241").Update(orm.Params{
 		//	"user_id": "1556889",
@@ -92,8 +142,8 @@ func main() {
 		//fmt.Printf("Affected Num: %v, %v", num, err)
 		// SET name = "astaixe" WHERE name = "slene"
 
-		//num, err := o.QueryTable("Post").Filter("title", "313241").Delete()
-		//fmt.Printf("Affected Num: %v, %v", num, err)
+		num, err := o.QueryTable("Post").Filter("title", "313241").Delete()
+		fmt.Printf("Affected Num: %v, %v", num, err)
 		// DELETE FROM user WHERE name = "slene"
 
 		/*
@@ -110,7 +160,7 @@ func main() {
 		////	fmt.Println("mysql row affected nums: ", num)
 		//}
 		if 1 == 1 {
-			return;
+			return
 		}
 		res, err := o.Raw(`update  "ORDER" set "Name"='bbbbbbbbbbbAAAAAAA' WHERE ID=100`).Exec()
 		if err == nil {

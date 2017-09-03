@@ -22,44 +22,11 @@ import (
 	"time"
 )
 
-// DriverType database driver constant int.
-type DriverType int
-
-// Enum the Database driver
-const (
-	_        DriverType = iota // int enum type
-	DRMySQL                    // mysql
-	DROracle                   // oracle
-
-)
-
 // database driver string.
 type driver string
 
-// get type constant int of current driver..
-func (d driver) Type() DriverType {
-	a, _ := dataBaseCache.get(string(d))
-	return a.Driver
-}
-
-// get name of current driver
-func (d driver) Name() string {
-	return string(d)
-}
-
-// check driver iis implemented Driver interface or not.
-var _ Driver = new(driver)
-
 var (
 	dataBaseCache = &_dbCache{cache: make(map[string]*alias)}
-	drivers       = map[string]DriverType{
-		"mysql":  DRMySQL,
-		"oracle": DROracle,
-	}
-	dbBasers = map[DriverType]dbBaser{
-		DRMySQL:  newdbBaseMysql(),
-		DROracle: newdbBaseOracle(),
-	}
 )
 
 // database alias cacher.
@@ -95,73 +62,19 @@ func (ac *_dbCache) getDefault() (al *alias) {
 
 type alias struct {
 	Name         string
-	Driver       DriverType
-	DriverName   string
 	DataSource   string
 	MaxIdleConns int
 	MaxOpenConns int
 	DB           *sql.DB
 	DbBaser      dbBaser
 	TZ           *time.Location
-	Engine       string
 }
 
-func detectTZ(al *alias) {
-	// orm timezone system match database
-	// default use Local
-	al.TZ = time.Local
-
-	if al.DriverName == "sphinx" {
-		return
-	}
-
-	switch al.Driver {
-	case DRMySQL:
-		row := al.DB.QueryRow("SELECT TIMEDIFF(NOW(), UTC_TIMESTAMP)")
-		var tz string
-		row.Scan(&tz)
-		if len(tz) >= 8 {
-			if tz[0] != '-' {
-				tz = "+" + tz
-			}
-			t, err := time.Parse("-07:00:00", tz)
-			if err == nil {
-				al.TZ = t.Location()
-			} else {
-				DebugLog.Printf("Detect DB timezone: %s %s\n", tz, err.Error())
-			}
-		}
-
-		// get default engine from current database
-		row = al.DB.QueryRow("SELECT ENGINE, TRANSACTIONS FROM information_schema.engines WHERE SUPPORT = 'DEFAULT'")
-		var engine string
-		var tx bool
-		row.Scan(&engine, &tx)
-
-		if engine != "" {
-			al.Engine = engine
-		} else {
-			al.Engine = "INNODB"
-		}
-
-	case DROracle:
-		al.TZ = time.UTC
-
-	}
-}
-
-func addAliasWthDB(aliasName, driverName string, db *sql.DB) (*alias, error) {
+func addAliasWthDB(aliasName string, db *sql.DB) (*alias, error) {
 	al := new(alias)
 	al.Name = aliasName
-	al.DriverName = driverName
 	al.DB = db
-
-	if dr, ok := drivers[driverName]; ok {
-		al.DbBaser = dbBasers[dr]
-		al.Driver = dr
-	} else {
-		return nil, fmt.Errorf("driver name `%s` have not registered", driverName)
-	}
+	al.DbBaser = newdbBaseOracle()
 
 	err := db.Ping()
 	if err != nil {
@@ -175,34 +88,26 @@ func addAliasWthDB(aliasName, driverName string, db *sql.DB) (*alias, error) {
 	return al, nil
 }
 
-// AddAliasWthDB add a aliasName for the drivename
-func AddAliasWthDB(aliasName, driverName string, db *sql.DB) error {
-	_, err := addAliasWthDB(aliasName, driverName, db)
-	return err
-}
-
-// RegisterDataBase Setting the database connect params. Use the database driver self dataSource args.
-func RegisterDataBase(aliasName, driverName, dataSource string, params ...int) error {
+// RegisterDB Setting the database connect params. Use the database driver self dataSource args.
+func RegisterDB(aliasName, dataSource string, params ...int) error {
 	var (
 		err error
 		db  *sql.DB
 		al  *alias
 	)
-
-	db, err = sql.Open(driverName, dataSource)
+	db, err = sql.Open("oci8", dataSource)
 	if err != nil {
 		err = fmt.Errorf("register db `%s`, %s", aliasName, err.Error())
 		goto end
 	}
 
-	al, err = addAliasWthDB(aliasName, driverName, db)
+	al, err = addAliasWthDB(aliasName, db)
 	if err != nil {
 		goto end
 	}
 
 	al.DataSource = dataSource
-
-	detectTZ(al)
+	al.TZ = time.UTC
 
 	for i, v := range params {
 		switch i {
@@ -222,18 +127,6 @@ end:
 	}
 
 	return err
-}
-
-// RegisterDriver Register a database driver use specify driver name, this can be definition the driver is which database type.
-func RegisterDriver(driverName string, typ DriverType) error {
-	if t, ok := drivers[driverName]; ok == false {
-		drivers[driverName] = typ
-	} else {
-		if t != typ {
-			return fmt.Errorf("driverName `%s` db driver already registered and is other type\n", driverName)
-		}
-	}
-	return nil
 }
 
 // SetDataBaseTZ Change the database default used timezone

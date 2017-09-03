@@ -80,7 +80,7 @@ func (d *dbBase) collectValues(mi *modelInfo, ind reflect.Value, cols []string, 
 	values = make([]interface{}, 0, len(cols))
 
 	for _, column := range cols {
-		fmt.Println("\n column : ", column, "\n")
+		//fmt.Println("\n column : ", column, "\n")
 		var fi *fieldInfo
 		if fi, _ = mi.fields.GetByAny(column); fi != nil {
 			column = fi.column
@@ -341,11 +341,11 @@ func (d *dbBase) Read(q dbQuerier, mi *modelInfo, ind reflect.Value, tz *time.Lo
 
 	whereMiddles := make([]string, len(whereCols))
 	for i, v := range whereCols {
-		whereMiddles[i] = fmt.Sprintf("%s%s%s = :%s", Q, v, Q, v)
+		whereMiddles[i] = fmt.Sprintf("%s%s%s = :%d", Q, v, Q, i)
 	}
 	wheres := strings.Join(whereMiddles, " AND ")
 
-	query := fmt.Sprintf("SELECT %s%s%s FROM %s%s%s WHERE %s %s", Q, sels, Q, Q, mi.table, Q, wheres)
+	query := fmt.Sprintf("SELECT %s%s%s FROM %s%s%s WHERE %s", Q, sels, Q, Q, mi.table, Q, wheres)
 
 	refs := make([]interface{}, colsNum)
 	for i := range refs {
@@ -504,99 +504,6 @@ func (d *dbBase) InsertValue(q dbQuerier, mi *modelInfo, isMulti bool, names []s
 	row := q.QueryRow(query, values...)
 	var id int64
 	err := row.Scan(&id)
-	return id, err
-}
-
-// InsertOrUpdate a row
-// If your primary key or unique column conflict will update
-// If no will insert
-func (d *dbBase) InsertOrUpdate(q dbQuerier, mi *modelInfo, ind reflect.Value, a *alias, args ...string) (int64, error) {
-	argsMap := map[string]string{}
-	pkName, pkValue, ok := getExistPk(mi, ind)
-	if ok == false {
-		return 0, ErrMissPK
-	}
-	_, _ = pkName, pkValue
-	//Get on the key-value pairs
-	for _, v := range args {
-		kv := strings.Split(v, "=")
-		if len(kv) == 2 {
-			argsMap[strings.ToLower(kv[0])] = kv[1]
-		}
-	}
-
-	isMulti := false
-	names := make([]string, 0, len(mi.fields.dbcols)-1)
-	Q := d.ins.TableQuote()
-	values, _, err := d.collectValues(mi, ind, mi.fields.dbcols, true, true, &names, a.TZ)
-
-	if err != nil {
-		return 0, err
-	}
-	fmt.Println("names:-------------------")
-	fmt.Println("%v", names)
-	fmt.Println("%v", values)
-	fmt.Println("values:-------------------")
-	/*
-	sql_raw := `MERGE INTO "USER" T1
-							  USING (SELECT '1001' AS "id",'AAAAAA' AS "name" FROM dual) T2
-							  ON ( T1."id"=T2."id")
-							  WHEN MATCHED THEN
-							  UPDATE SET T1."name" = T2."name"
-							  WHEN NOT MATCHED THEN
-    						  INSERT ("id","name") VALUES (T2."id",T2."name")`;
-    						  */
-	marks := make([]string, len(names))
-	updateValues := make([]interface{}, 0)
-	updates := make([]string, len(names))
-	for i, v := range names {
-		marks[i] = "?"
-		valueStr := argsMap[strings.ToLower(v)]
-		if valueStr != "" {
-			switch a.Driver {
-			case DRMySQL:
-				updates[i] = v + "=" + valueStr
-			}
-		} else {
-			updates[i] = v + "=?"
-			updateValues = append(updateValues, values[i])
-		}
-	}
-
-	values = append(values, updateValues...)
-
-	sep := fmt.Sprintf("%s, %s", Q, Q)
-	qmarks := strings.Join(marks, ", ")
-	qupdates := strings.Join(updates, ", ")
-	columns := strings.Join(names, sep)
-
-	multi := len(values) / len(names)
-
-	if isMulti {
-		qmarks = strings.Repeat(qmarks+"), (", multi-1) + qmarks
-	}
-	//conflitValue maybe is a int,can`t use fmt.Sprintf
-	query := fmt.Sprintf("INSERT INTO %s%s%s (%s%s%s) VALUES (%s) "+qupdates, Q, mi.table, Q, Q, columns, Q, qmarks)
-
-	d.ins.ReplaceMarks(&query)
-
-	if isMulti || !d.ins.HasReturningID(mi, &query) {
-		res, err := q.Exec(query, values...)
-		if err == nil {
-			if isMulti {
-				return res.RowsAffected()
-			}
-			return res.LastInsertId()
-		}
-		return 0, err
-	}
-
-	row := q.QueryRow(query, values...)
-	var id int64
-	err = row.Scan(&id)
-	if err.Error() == `pq: syntax error at or near "ON"` {
-		err = fmt.Errorf("postgres version must 9.5 or higher")
-	}
 	return id, err
 }
 

@@ -200,17 +200,6 @@ func getDbCreateSQL(al *alias) (sqls []string, tableIndexes map[string][]dbIndex
 		sql += strings.Join(columns, ",\n")
 		sql += "\n)"
 
-		if al.Driver == DRMySQL {
-			var engine string
-			if mi.model != nil {
-				engine = getTableEngine(mi.addrField)
-			}
-			if engine == "" {
-				engine = al.Engine
-			}
-			sql += " ENGINE=" + engine
-		}
-
 		sql += ";"
 		sqls = append(sqls, sql)
 

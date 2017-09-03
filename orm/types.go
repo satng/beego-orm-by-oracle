@@ -20,12 +20,6 @@ import (
 	"time"
 )
 
-// Driver define database driver
-type Driver interface {
-	Name() string
-	Type() DriverType
-}
-
 // Fielder define field info
 type Fielder interface {
 	String() string
@@ -53,11 +47,6 @@ type Ormer interface {
 	//  id, err = Ormer.Insert(user)
 	//  user must a pointer and Insert will set user's pk field
 	Insert(interface{}) (int64, error)
-	// mysql:InsertOrUpdate(model) or InsertOrUpdate(model,"colu=colu+value")
-	// if colu type is integer : can use(+-*/), string : convert(colu,"value")
-	// postgres: InsertOrUpdate(model,"conflictColumnName") or InsertOrUpdate(model,"conflictColumnName","colu=colu+value")
-	// if colu type is integer : can use(+-*/), string : colu || "value"
-	InsertOrUpdate(md interface{}, colConflitAndArgs ...string) (int64, error)
 	// insert some models to database
 	InsertMulti(bulk int, mds interface{}) (int64, error)
 	// update model to database.
@@ -112,7 +101,6 @@ type Ormer interface {
 	//	 ormer.Raw("UPDATE `user` SET `user_name` = ? WHERE `user_name` = ?", "slene", "testing").Exec()
 	//	// update user testing's name to slene
 	Raw(query string, args ...interface{}) RawSeter
-	Driver() Driver
 	Test(md interface{})
 }
 
@@ -397,7 +385,6 @@ type txEnder interface {
 type dbBaser interface {
 	Read(dbQuerier, *modelInfo, reflect.Value, *time.Location, []string) error
 	Insert(dbQuerier, *modelInfo, reflect.Value, *time.Location) (int64, error)
-	InsertOrUpdate(dbQuerier, *modelInfo, reflect.Value, *alias, ...string) (int64, error)
 	InsertMulti(dbQuerier, *modelInfo, reflect.Value, int, *time.Location) (int64, error)
 	InsertValue(dbQuerier, *modelInfo, bool, []string, []interface{}) (int64, error)
 	InsertStmt(stmtQuerier, *modelInfo, reflect.Value, *time.Location) (int64, error)

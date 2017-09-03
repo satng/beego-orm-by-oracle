@@ -209,19 +209,6 @@ func (o *orm) InsertMulti(bulk int, mds interface{}) (int64, error) {
 	return cnt, nil
 }
 
-// InsertOrUpdate data to database
-func (o *orm) InsertOrUpdate(md interface{}, colConflitAndArgs ...string) (int64, error) {
-	mi, ind := o.getMiInd(md, true)
-	id, err := o.alias.DbBaser.InsertOrUpdate(o.db, mi, ind, o.alias, colConflitAndArgs...)
-	if err != nil {
-		return id, err
-	}
-
-	o.setPk(mi, ind, id)
-
-	return id, nil
-}
-
 // update model to database.
 // cols set the columns those want to update.
 func (o *orm) Update(md interface{}, cols ...string) (int64, error) {
@@ -510,11 +497,6 @@ func (o *orm) Raw(query string, args ...interface{}) RawSeter {
 	return newRawSet(o, query, args)
 }
 
-// return current using database Driver
-func (o *orm) Driver() Driver {
-	return driver(o.alias.Name)
-}
-
 func (o *orm) Test(md interface{}) {
 	mi, ind := o.getMiInd(md, true)
 	fmt.Print("%v,%v\n", mi, ind)
@@ -536,16 +518,10 @@ func NewOrm() Ormer {
 func NewOrmWithDB(driverName, aliasName string, db *sql.DB) (Ormer, error) {
 	var al *alias
 
-	if dr, ok := drivers[driverName]; ok {
-		al = new(alias)
-		al.DbBaser = dbBasers[dr]
-		al.Driver = dr
-	} else {
-		return nil, fmt.Errorf("driver name `%s` have not registered", driverName)
-	}
+	al.DB = db
+	al.DbBaser = newdbBaseOracle()
 
 	al.Name = aliasName
-	al.DriverName = driverName
 
 	o := new(orm)
 	o.alias = al
