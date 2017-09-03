@@ -97,4 +97,3 @@ func (d *dbBaseOracle) IndexExists(db dbQuerier, table string, name string) bool
 func (d *dbBaseOracle) TableQuote() string {
 	return "\""
 }
-

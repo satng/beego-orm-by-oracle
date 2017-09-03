@@ -80,6 +80,7 @@ func (d *dbBase) collectValues(mi *modelInfo, ind reflect.Value, cols []string, 
 	values = make([]interface{}, 0, len(cols))
 
 	for _, column := range cols {
+		fmt.Println("\n column : ", column, "\n")
 		var fi *fieldInfo
 		if fi, _ = mi.fields.GetByAny(column); fi != nil {
 			column = fi.column
@@ -532,7 +533,19 @@ func (d *dbBase) InsertOrUpdate(q dbQuerier, mi *modelInfo, ind reflect.Value, a
 	if err != nil {
 		return 0, err
 	}
-
+	fmt.Println("names:-------------------")
+	fmt.Println("%v", names)
+	fmt.Println("%v", values)
+	fmt.Println("values:-------------------")
+	/*
+	sql_raw := `MERGE INTO "USER" T1
+							  USING (SELECT '1001' AS "id",'AAAAAA' AS "name" FROM dual) T2
+							  ON ( T1."id"=T2."id")
+							  WHEN MATCHED THEN
+							  UPDATE SET T1."name" = T2."name"
+							  WHEN NOT MATCHED THEN
+    						  INSERT ("id","name") VALUES (T2."id",T2."name")`;
+    						  */
 	marks := make([]string, len(names))
 	updateValues := make([]interface{}, 0)
 	updates := make([]string, len(names))

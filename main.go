@@ -14,6 +14,7 @@ import (
 type Order struct {
 	Id   int    `orm:"column(ID)"`
 	Name string `orm:"column(Name)"`
+	Number string
 }
 
 func (u *Order) TableName() string {
@@ -56,9 +57,25 @@ func main() {
 
 	o.Using("default") // 默认使用 default，你可以指定为其他数据库
 
+	/*
+	res, err := o.Raw(`MERGE INTO "USER" T1
+							  USING (SELECT :id AS "id",:name AS "name" FROM dual) T2
+							  ON ( T1."id"=T2."id")
+							  WHEN MATCHED THEN
+							  UPDATE SET T1."name" = T2."name"
+							  WHEN NOT MATCHED THEN
+    						  INSERT ("id","name") VALUES (T2."id",T2."name")`, 1000, "aaaaaa").Exec()
+	if err == nil {
+		num, _ := res.RowsAffected()
+		fmt.Println("mysql row affected nums: ", num)
+	}
+	if 1 == 1 {
+		return;
+	}
+*/
 	if 1 == 1 {
 
-		user := Order{Id: 1026, Name: "AAAAAAAAAA"}
+		user := Order{Id: 1026, Name: "AAAAAbbb"}
 		val := reflect.ValueOf(&user)
 		ind := reflect.Indirect(val)
 		typ := ind.Type()
@@ -66,8 +83,8 @@ func main() {
 		fmt.Println(val, ind, typ)
 		fmt.Println(ind.Type().Name(), ind.Type().PkgPath())
 		o.Test(&user)
-		//num, err := o.InsertOrUpdate(&user)
-		//fmt.Printf("Affected Num: %v, %v", num, err)
+		num, err := o.InsertOrUpdate(&user)
+		fmt.Printf("Affected Num: %v, %v", num, err)
 		//fmt.Printf(*(*string)(unsafe.Pointer(uintptr(num))))
 		//num, err := o.QueryTable("Post").Filter("title", "313241").Update(orm.Params{
 		//	"user_id": "1556889",
@@ -92,7 +109,9 @@ func main() {
 		//	num, _ := res.RowsAffected()
 		////	fmt.Println("mysql row affected nums: ", num)
 		//}
-
+		if 1 == 1 {
+			return;
+		}
 		res, err := o.Raw(`update  "ORDER" set "Name"='bbbbbbbbbbbAAAAAAA' WHERE ID=100`).Exec()
 		if err == nil {
 			num, _ := res.RowsAffected()
