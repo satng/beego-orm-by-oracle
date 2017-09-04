@@ -447,25 +447,18 @@ func (t *dbTables) getOrderSQL(orders []string) (orderSQL string) {
 }
 
 // generate limit sql.
-func (t *dbTables) getLimitSQL(mi *modelInfo, offset int64, limit int64) (limits string) {
+func (t *dbTables) getLimitSQL(offset int64, limit int64) (limits string) {
+	if limit < 0 || offset < 0 {
+		return ""
+	}
 	if limit == 0 {
 		limit = int64(DefaultRowsLimit)
 	}
-	if limit < 0 {
-		// no limit
-		if offset > 0 {
-			maxLimit := t.base.MaxLimit()
-			if maxLimit == 0 {
-				limits = fmt.Sprintf("OFFSET %d", offset)
-			} else {
-				limits = fmt.Sprintf("LIMIT %d OFFSET %d", maxLimit, offset)
-			}
-		}
-	} else if offset <= 0 {
-		limits = fmt.Sprintf("LIMIT %d", limit)
-	} else {
-		limits = fmt.Sprintf("LIMIT %d OFFSET %d", limit, offset)
+	if offset == 0 {
+		offset = int64(1)
 	}
+	//SELECT * FROM (SELECT A.*, ROWNUM RN FROM (SELECT * FROM BIG) A WHERE ROWNUM <= 40) WHERE RN >= 21
+	limits = fmt.Sprintf(`SELECT * FROM (SELECT "A".*, ROWNUM "RN" FROM (%%s) "A" WHERE ROWNUM < %d) WHERE "RN" >= %d`, limit+offset, offset)
 	return
 }
 

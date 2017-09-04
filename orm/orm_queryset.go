@@ -193,6 +193,7 @@ func (o *querySet) All(container interface{}, cols ...string) (int64, error) {
 // cols means the columns when querying.
 func (o *querySet) One(container interface{}, cols ...string) error {
 	o.limit = 1
+	o.offset = 1
 	num, err := o.orm.alias.DbBaser.ReadBatch(o.orm.db, o, o.mi, o.cond, container, o.orm.alias.TZ, cols)
 	if err != nil {
 		return err

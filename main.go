@@ -118,7 +118,13 @@ func main() {
 	//ReadOrCreate(o)
 	//o.Rollback()
 
-	ExecSQL(o)
+	{
+		var posts []*Post
+		num, err := o.QueryTable("Post").All(&posts)
+		fmt.Printf("Affected Num: %v, %v\n", num, err)
+		fmt.Println(posts)
+	}
+	//ExecSQL(o)
 
 	if 1 == 1 {
 		return

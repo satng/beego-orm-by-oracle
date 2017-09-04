@@ -872,8 +872,9 @@ func (d *dbBase) ReadBatch(q dbQuerier, qs *querySet, mi *modelInfo, cond *Condi
 	where, args := tables.getCondSQL(cond, false, tz)
 	groupBy := tables.getGroupSQL(qs.groups)
 	orderBy := tables.getOrderSQL(qs.orders)
-	limit := tables.getLimitSQL(mi, offset, rlimit)
-	limit = ""
+
+	limit := tables.getLimitSQL(offset, rlimit)
+
 	join := tables.getJoinSQL()
 
 	for _, tbl := range tables.tables {
@@ -888,10 +889,13 @@ func (d *dbBase) ReadBatch(q dbQuerier, qs *querySet, mi *modelInfo, cond *Condi
 	if qs.distinct {
 		sqlSelect += " DISTINCT"
 	}
-	query := fmt.Sprintf("%s %s FROM %s%s%s T0 %s%s%s%s%s", sqlSelect, sels, Q, mi.table, Q, join, where, groupBy, orderBy, limit)
+	query := fmt.Sprintf("%s %s FROM %s%s%s T0 %s%s%s%s", sqlSelect, sels, Q, mi.table, Q, join, where, groupBy, orderBy)
 
 	d.ins.ReplaceMarks(&query)
 
+	if limit != "" {
+		query = fmt.Sprintf(limit, query)
+	}
 	var rs *sql.Rows
 	r, err := q.Query(query, args...)
 	if err != nil {
@@ -899,7 +903,7 @@ func (d *dbBase) ReadBatch(q dbQuerier, qs *querySet, mi *modelInfo, cond *Condi
 	}
 	rs = r
 
-	refs := make([]interface{}, colsNum)
+	refs := make([]interface{}, colsNum+1)
 	for i := range refs {
 		var ref interface{}
 		refs[i] = &ref
@@ -1542,7 +1546,9 @@ func (d *dbBase) ReadValues(q dbQuerier, qs *querySet, mi *modelInfo, cond *Cond
 	where, args := tables.getCondSQL(cond, false, tz)
 	groupBy := tables.getGroupSQL(qs.groups)
 	orderBy := tables.getOrderSQL(qs.orders)
-	limit := tables.getLimitSQL(mi, qs.offset, qs.limit)
+
+	limit := tables.getLimitSQL(qs.offset, qs.limit)
+
 	join := tables.getJoinSQL()
 
 	sels := strings.Join(cols, ", ")
@@ -1551,15 +1557,19 @@ func (d *dbBase) ReadValues(q dbQuerier, qs *querySet, mi *modelInfo, cond *Cond
 	if qs.distinct {
 		sqlSelect += " DISTINCT"
 	}
-	query := fmt.Sprintf("%s %s FROM %s%s%s T0 %s%s%s%s%s", sqlSelect, sels, Q, mi.table, Q, join, where, groupBy, orderBy, limit)
+	query := fmt.Sprintf("%s %s FROM %s%s%s T0 %s%s%s%s", sqlSelect, sels, Q, mi.table, Q, join, where, groupBy, orderBy)
 
 	d.ins.ReplaceMarks(&query)
+
+	if limit != "" {
+		query = fmt.Sprintf(limit, query)
+	}
 
 	rs, err := q.Query(query, args...)
 	if err != nil {
 		return 0, err
 	}
-	refs := make([]interface{}, len(cols))
+	refs := make([]interface{}, len(cols)+1)
 	for i := range refs {
 		var ref interface{}
 		refs[i] = &ref
